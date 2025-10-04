@@ -1,200 +1,335 @@
-# Miku Miku Beam 💥⚡ (Network Stresser)
+# Request_Clicker 🖱️⚡ (Stress Testing Idle Game)
 
-A fun and visually appealing stress testing server with a **Miku-themed** frontend, where you can configure and run attacks while enjoying a banger song in the background! 🎤✨
+A unique idle/clicker game built on top of [MikuMikuBeam](https://github.com/sammwyy/MikuMikuBeam), where network stress testing meets incremental game mechanics. Progress through upgrades to unlock more powerful attack methods while sending **real HTTP requests** to your configured targets.
 
 ![Screenshot](docs/screenshot.png)
 
-## Features 🎉
+## 🎮 Concept
 
-- 🐳 **Docker Ready**: MMB is ready to be built and run in a Docker container.
-- 🌐 **Real-time Attack Visualization**: View your attack’s progress and statistics in real-time as it runs. 🔥
-- 🎶 **Miku-themed UI**: A cute and vibrant design with Miku’s vibe to make the process more fun. Includes a banger song to keep you pumped! 🎧
-- 🧑‍💻 **Configurable Attack Parameters**: Easily set the attack method, packet size, duration, and packet delay via the frontend interface.
-- 🛠️ **Worker-Based Attack Handling**: The server processes attacks in separate workers for optimal performance and scalability.
-- 📊 **Live Stats**: Track the success and failure of each attack in real-time. See how many packets are sent and whether they succeed or fail.
-- 🖼️ **Aesthetic Design**: A visually cute interface to make your experience enjoyable. 🌸
-- 📡 **Attack Methods:**:
-  - `HTTP Flood` - Send random HTTP requests
-  - `HTTP Bypass` - Send HTTP requests that mimics real requests (Redirects, cookies, headers, resources...)
-  - `HTTP Slowloris` - Send HTTP requests and keep the connection open
-  - `Minecraft Ping` - Send Minecraft ping/motd requests
-  - `TCP Flood` - Send random TCP packets
+**Request_Clicker transforms network stress testing into a progression-based game:**
+- Click to manually send HTTP requests
+- Buy bots to automate request generation
+- Unlock attack methods (HTTP Flood, HTTP Bypass, TCP Flood, etc.)
+- Upgrade packet sizes, speeds, and multipliers
+- Build a powerful stress testing infrastructure through gameplay
 
-## Setup 🛠️
+Every click and every bot sends **real requests** through proxies to your target. This is not a simulation - it's a functional stress tester gamified.
 
-### Prerequisites 📦
+## ✨ Features
 
-Make sure you have the following installed:
+- 🎮 **Idle Game Mechanics**: Click to earn requests, buy upgrades, automate with bots
+- ⚡ **Real Stress Testing**: Every request in-game is a real HTTP request via proxies
+- 🛒 **Progressive Unlocks**: Start with basic clicks, unlock advanced attack methods
+- 📊 **Live Statistics**: Real-time RPS, success/failure rates, active bots counter
+- 🎨 **Hacker Aesthetic**: Terminal-style UI with Matrix green and cyber vibes
+- 🔧 **Configurable Parameters**: Attack method, packet size, duration, delay
+- 🖥️ **Console Logging**: Detailed logs showing each request with proxy info
+- 🎭 **Demo Mode**: Play the game without sending real requests
+- 💾 **Save/Load System**: Progress persists via localStorage
+- 🐳 **Docker Ready**: Can be containerized for deployment
 
-- Node.js (v14 or above) 🌱
-- npm (Node Package Manager) 📦
+## 🏗️ Architecture
 
-### Development Mode 🔧
+```
+Frontend (React + Vite)          Backend (Node.js + Express)
+http://localhost:5173            http://localhost:3000
+        │                                 │
+        ├─ Clicker Button                 ├─ POST /api/attack/single
+        ├─ Upgrade Shop                   ├─ POST /api/attack/batch
+        ├─ Stats Display                  ├─ Proxy rotation system
+        ├─ Game Loop (bots)               ├─ User-Agent rotation
+        └─ Console Logs                   └─ Request sending via workers
+                │                                 │
+                └─────────────────────────────────┘
+                       API REST + Socket.io
+                                │
+                        ┌───────┴────────┐
+                        │  Target Server │
+                        │  (configured)  │
+                        └────────────────┘
+```
 
-1. Clone this repository:
+## 🚀 Setup & Installation
 
+### Prerequisites
+
+- **Node.js** v18 or higher
+- **npm** (comes with Node.js)
+
+### Quick Start
+
+1. **Clone the repository:**
    ```bash
-   git clone https://github.com/sammwyy/mikumikubeam.git
-   cd mikumikubeam
+   git clone https://github.com/yourusername/request-clicker.git
+   cd request-clicker
    ```
 
-2. Install the required dependencies:
-
+2. **Install dependencies:**
    ```bash
    npm install
    ```
 
-3. Create the necessary files:
-   - `data/proxies.txt` - List of proxies.
-   - `data/uas.txt` - List of user agents.
+3. **Create required files:**
+   ```bash
+   mkdir -p data
+   touch data/proxies.txt data/uas.txt
+   ```
 
-4. Run the server in development mode:
+4. **Add proxies and user agents:**
+   - `data/proxies.txt`: One proxy per line
+     - Format: `protocol://host:port` or `protocol://user:pass@host:port`
+     - Example: `socks4://127.0.0.1:1080`
+   
+   - `data/uas.txt`: One user agent per line
+     - Example: `Mozilla/5.0 (Windows NT 10.0; Win64; x64)...`
 
+5. **Start the game:**
    ```bash
    npm run dev
    ```
 
-   - The **frontend** runs on `http://localhost:5173`.
-   - The **backend** runs on `http://localhost:3000`.
+6. **Open in browser:**
+   - Navigate to `http://localhost:5173`
+   - Both frontend and backend start automatically
 
----
+## 🎯 How to Play
 
-### Production Mode 💥
+### Starting the Game
 
-1. Clone the repository and navigate to the project directory:
+1. **Set Target URL**: Enter the target URL in the Attack Configuration panel
+2. **Press "START ATTACK"**: Enables the game (allows clicking and bot generation)
+3. **Click "SEND REQUEST"**: Each click sends real HTTP requests
+4. **Buy Upgrades**: Use earned requests to purchase upgrades in the shop
 
-   ```bash
-   git clone https://github.com/sammwyy/mikumikubeam.git
-   cd mikumikubeam
-   ```
+### Progression System
 
-2. Install the dependencies:
+**Currency**: Total Requests Sent
+- Earned by clicking manually
+- Earned automatically by owned bots (idle generation)
+- Used to purchase upgrades
 
-   ```bash
-   npm install
-   ```
+**Upgrade Categories**:
+- **Clicking Power**: Increase requests per click (1 → 2 → 5 → 10 → 25 → 100)
+- **Auto-Bots**: Generate requests passively (0.1 RPS → 1 RPS → 10 RPS → 100 RPS → 1000 RPS)
+- **Attack Methods**: Unlock HTTP Flood, HTTP Bypass, TCP Flood, HTTP Slowloris, Minecraft Ping
+- **Packet Size**: Increase from 64kb → 128kb → 256kb → 512kb → 1MB
+- **Speed**: Reduce delay between packets (500ms → 250ms → 100ms → 50ms → 10ms → 1ms)
+- **Duration**: Extend attack duration (60s → 120s → 300s → 600s → Unlimited)
+- **Multipliers**: Boost all bot production (2x → 5x → 10x)
+- **Utilities**: Auto-save, proxy pools, statistics display
 
-3. Build the project:
+### Demo Mode
 
-   ```bash
-   npm run build
-   ```
+Located in Attack Configuration panel:
+- **Enabled**: Game functions normally WITHOUT sending real requests (safe testing)
+- **Disabled**: Every request is sent to the backend and target (real stress testing)
 
-4. Start the server in production mode:
+Recommended to start in Demo Mode to understand mechanics before real testing.
 
-   ```bash
-   npm run start
-   ```
+## 📊 Game Mechanics
 
-   In production mode, both the **frontend** and **backend** are served on the same port (`http://localhost:3000`).
+### Request Sending System
 
-> Don't forget to add the necessary files `data/proxies.txt` and `data/uas.txt`.
+**Manual Clicks**:
+- Each click calls `/api/attack/single` for each `requestsPerClick`
+- Example: With "Better Click" upgrade, 1 click = 2 real HTTP requests
 
-## Usage ⚙️
+**Automated Bots**:
+- Bots generate requests per second (RPS) continuously
+- Low RPS (< 10): Individual requests via `/api/attack/single`
+- High RPS (≥ 10): Batched requests via `/api/attack/batch` (up to 50 per batch)
 
-Once the server is up and running, you can interact with it via the frontend:
+**Backend Processing**:
+1. Receives request from frontend
+2. Randomly selects proxy + user agent
+3. Creates HTTP client with proxy
+4. Sends HTTP request to target
+5. Returns success/failure status
+6. Frontend updates stats and logs
 
-1. **Start Attack**:
-   - Set up the attack parameters: target URL, attack method (HTTP Flood, Slowloris, TCP, etc...), packet size, duration, and delay.
-   - Press "Start Attack" to initiate the stress test.
+### Statistics Tracking
 
-2. **Stop Attack**:
-   - Press "Stop Attack" to terminate the ongoing attack.
+Real-time stats displayed in System Status panel:
+- **RPS**: Requests Per Second (calculated from actual sent requests)
+- **Active Bots**: Number of bot upgrades owned
+- **Total Requests**: Cumulative requests sent (game currency)
+- **Success Rate**: Shown in Attack Configuration when active
 
-### Example Request
+### Console Logging
 
-```json
-{
-  "target": "http://example.com",
-  "attackMethod": "http_flood",
-  "packetSize": 512,
-  "duration": 60,
-  "packetDelay": 500
-}
+Detailed logs with timestamps:
+- `✅ Request successful from socks4://IP:PORT to https://target.com`
+- `❌ Request failed: Connection timeout`
+- `🖱 Manual click: +N requests`
+
+Logs are sampled to prevent spam (5% success, 10% failures, 100% batches).
+
+## ⚙️ Available Commands
+
+```bash
+# Development (frontend + backend together)
+npm run dev
+
+# Frontend only (Vite dev server)
+npm run dev:client
+
+# Backend only (Node.js API server)
+npm run dev:server
+
+# Production build
+npm run build
+
+# Production start
+npm run start
 ```
 
-## Adding Proxies and User-Agents
+## 🔧 Attack Methods
 
-Access to the ``data/proxies.txt`` and ``data/uas.txt`` can now be done fully in the frontend. Click the text button to the right of the beam button to open up the editor.
+Unlockable through progression:
 
-![AnnotatedImage](docs/annotated-button.png)
+1. **HTTP Flood** (default): Random HTTP GET/POST requests
+2. **HTTP Bypass** (10k requests): Mimics real browser behavior with cookies/headers
+3. **TCP Flood** (50k requests): Raw TCP packet flooding
+4. **HTTP Slowloris** (100k requests): Keeps connections open to exhaust server
+5. **Minecraft Ping** (250k requests): Spams Minecraft server status requests
 
-## Worker-Based Attack Handling 🔧💡
+Each method uses the configured proxy pool and user agents for anonymity.
 
-Each attack type is handled in a separate worker thread, ensuring that the main server remains responsive. The attack workers are dynamically loaded based on the selected attack method (HTTP, etc...).
+## 📁 Project Structure
 
-## To-Do 📝
-
-- Add more attack methods:
-  - UDP 🌐
-  - DNS 📡
-  - And more! 🔥
-
-- Enhance attack statistics and reporting for better real-time monitoring. 📊
-
-## Contributing 💖
-
-Feel free to fork the repo and open pull requests with new attack protocols, bug fixes, or improvements. If you have an idea for a new feature, please share it! 😄
-
-### Adding New Attack Methods ⚡
-
-To extend the server with new attack methods (e.g., Minecraft, TCP, UDP, DNS), you can create new worker files and add them to the server configuration.
-
-For example:
-
-- Add a new attack method in the frontend settings.
-- Create the corresponding worker file (e.g., `minecraftAttack.js`).
-- Update the attack handler configuration to include the new method.
-
-```javascript
-const attackHandlers = {
-  http_flood: "./workers/httpFloodAttack.js",
-  http_slowloris: "./workers/httpSlowlorisAttack.js",
-  tcp_flood: "./workers/tcpFloodAttack.js",
-  minecraft_ping: "./workers/minecraftPingAttack.js",
-
-  // Add more protocols as needed!
-  your_protocol: "./workers/yourProtocolAttack.js"
-};
+```
+request-clicker/
+├── src/                          # Frontend source
+│   ├── components/               # React components
+│   │   ├── Clicker.tsx          # Main click button
+│   │   ├── Stats.tsx            # Statistics display
+│   │   ├── UpgradeShop.tsx      # Upgrade purchase interface
+│   │   ├── AttackConfig.tsx     # Target & method configuration
+│   │   └── Console.tsx          # Log display
+│   ├── store/
+│   │   └── gameStore.ts         # Zustand state management
+│   ├── hooks/
+│   │   └── useGameLoop.ts       # Main game loop (bot generation)
+│   ├── utils/
+│   │   └── sendRequest.ts       # API call functions
+│   └── data/
+│       └── upgrades.ts          # Upgrade definitions
+├── server/                       # Backend source
+│   ├── index.ts                 # Express server + Socket.io
+│   ├── utils/
+│   │   ├── singleRequestUtils.js   # Single/batch request logic
+│   │   └── clientUtils.js          # HTTP client creation
+│   └── workers/                 # Attack workers (legacy continuous mode)
+├── data/
+│   ├── proxies.txt              # Proxy list (REQUIRED)
+│   └── uas.txt                  # User agent list (REQUIRED)
+└── docs/                        # Screenshots and documentation
 ```
 
----
+## 🐛 Troubleshooting
 
-### FAQs ❓
+### Port Already in Use
 
-**1. What operating system does MMB support?**
+**Windows:**
+```bash
+taskkill /F /IM node.exe
+npm run dev
+```
 
-> **Windows**, **Linux**, **Mac** and **Android (untested)**
+**Linux/Mac:**
+```bash
+killall node
+npm run dev
+```
 
-**2. It crashes on startup, giving a "concurrently" error**
+### Backend Connection Failed
 
-> Try running two terminals instead of one, in the first one use "npm run dev:client", and in the other one "npm run dev:server". (This happened to several people with Windows 11)
+1. Verify backend is running on port 3000
+2. Check browser console (F12) for errors
+3. Ensure both servers started with `npm run dev`
+4. Check `data/proxies.txt` and `data/uas.txt` exist
 
-**3. I go to "<http://localhost:3000>" and nothing appears.**
+### Requests Failing
 
-> Port `3000` is the server port, to see the UI you must use port `5173` (<http://localhost:5173>)
+- Ensure `data/proxies.txt` contains valid, working proxies
+- Format: `socks4://IP:PORT` or `http://IP:PORT`
+- Test proxies individually before adding to list
+- Some targets may block proxy traffic
 
-**4. Requests fail to be sent to the target server (Read timeout and variations)**
+### Missing Dependencies
 
-> You must put the corresponding proxies in the file `data/proxies.txt`. On each line, put a different proxy that will be used to perform the attack. The format must be the following:
->
-> - `protocol://user:password@host:port` (Proxy with authentication)
-> - `protocol://host:port`
-> - `host:port` (Uses http as default protocol)
-> - `host` (Uses 8080 as default port)
+```bash
+npm install
+npm run dev
+```
 
----
+## ⚠️ Legal & Ethical Disclaimer
 
-## License 📝
+**FOR EDUCATIONAL PURPOSES ONLY**
+
+This tool is designed for:
+- Learning about network protocols and stress testing
+- Testing your own servers and applications
+- Understanding idle game mechanics with real-world integration
+
+**DO NOT use this tool to:**
+- Attack systems you don't own or have permission to test
+- Perform unauthorized stress tests
+- Engage in any illegal activity
+
+Unauthorized network attacks are **illegal** in most jurisdictions. Always obtain explicit written permission before stress testing any system. The authors are not responsible for misuse.
+
+## 🤝 Contributing
+
+Contributions welcome! Feel free to:
+- Report bugs via Issues
+- Suggest new upgrade types
+- Improve game balance
+- Add new attack methods
+- Enhance UI/UX
+
+## 📝 Technical Details
+
+### Batching System
+
+When RPS ≥ 10, requests are batched for performance:
+- Accumulates fractional requests from bots
+- Sends batches of 50 requests via `/api/attack/batch`
+- Backend processes in parallel with `Promise.all()`
+- Reduces API overhead while maintaining throughput
+
+### State Management
+
+Uses Zustand for global game state:
+- `totalRequests`: Game currency
+- `requestsPerClick`: Manual click power
+- `requestsPerSecond`: Bot generation rate
+- `ownedUpgrades`: Purchased items
+- `unlockedFeatures`: Available attack methods/parameters
+- `attackStats`: Success/failure counters, RPS calculation
+
+### Performance Optimizations
+
+- Request sampling for logs (prevents console spam)
+- Batch processing for high RPS (>= 10 RPS)
+- Proxy/User-Agent caching
+- Configurable timeouts (5s single, 10s batch)
+- Real-time RPS calculated once per second
+
+## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+Based on [MikuMikuBeam](https://github.com/sammwyy/MikuMikuBeam) by sammwyy.
+
+## 🎮 Credits
+
+- **Original Concept**: MikuMikuBeam by sammwyy
+- **Game Design**: Request_Clicker adaptation
+- **Idle Game Inspiration**: Cookie Clicker, Universal Paperclips
+
 ---
 
-## Disclaimer 🚨
+**Happy Testing! 🚀**
 
-Please note that this project is for educational purposes only and should not be used for malicious purposes.
-
----
-
-### (｡♥‿♥｡) Happy Hacking 💖🎶
+*Remember: With great power comes no responsibility.*

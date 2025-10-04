@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl http://localhost:3000/api/attack/status)",
+      "Bash(curl -X POST http://localhost:3000/api/attack/single -H \"Content-Type: application/json\" -d \"{\"\"target\"\":\"\"http://example.com\"\",\"\"method\"\":\"\"http_flood\"\",\"\"packetSize\"\":64}\")",
+      "Bash(curl -X POST http://localhost:3000/api/attack/batch -H \"Content-Type: application/json\" -d \"{\"\"target\"\":\"\"http://example.com\"\",\"\"method\"\":\"\"http_flood\"\",\"\"packetSize\"\":64,\"\"count\"\":5}\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

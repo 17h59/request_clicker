@@ -1,0 +1,278 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    COMMENT ÇA MARCHE - REQUEST_CLICKER
+                Architecture et Fonctionnement du Jeu Idle/Clicker
+═══════════════════════════════════════════════════════════════════════════════
+
+📖 CONCEPT DU JEU
+─────────────────────────────────────────────────────────────────────────────
+Request_Clicker est un jeu idle/clicker qui transforme un outil de stress test
+réseau (MikuMikuBeam) en jeu progressif. Chaque clic et chaque bot acheté
+envoie de VRAIES requêtes HTTP à travers le backend vers une cible configurable.
+
+
+🏗️ ARCHITECTURE GLOBALE
+─────────────────────────────────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         FRONTEND (React + Vite)                         │
+│                         http://localhost:5173                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│  • Interface utilisateur (clicker, boutique, stats, console)            │
+│  • Gestion d'état avec Zustand (gameStore)                              │
+│  • Envoi de requêtes individuelles via API REST                         │
+│  • Calcul de la progression et des achats                               │
+│  • Affichage en temps réel des statistiques                             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↕
+                          API REST + Socket.io
+                                    ↕
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        BACKEND (Node.js + Express)                      │
+│                         http://localhost:3000                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│  • API REST pour requêtes individuelles et par lot                      │
+│  • Rotation de proxies (SOCKS4/5) et User-Agents                        │
+│  • Envoi des requêtes HTTP vers les cibles                              │
+│  • Socket.io pour communication temps réel (logs)                       │
+│  • Workers pour attaques continues (mode legacy)                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↕
+                            PROXIES + CIBLES
+                                    ↕
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           SERVEURS CIBLES                               │
+│                    (configurés par l'utilisateur)                       │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+🔧 MODIFICATIONS APPORTÉES
+─────────────────────────────────────────────────────────────────────────────
+
+1. CRÉATION DES ENDPOINTS API (Backend)
+════════════════════════════════════════════════════════════════════════════
+
+📁 Fichier : server/utils/singleRequestUtils.js
+───────────────────────────────────────────────────────────────────────────
+• sendSingleRequest() → Envoie UNE seule requête HTTP
+  - Utilise les proxies et user-agents existants
+  - Rotation aléatoire pour chaque requête
+  - Supporte http_flood, http_bypass, etc.
+
+• sendBatchRequests() → Envoie plusieurs requêtes en parallèle
+  - Optimisé pour les RPS élevés (bots multiples)
+  - Limite de 100 requêtes par batch
+  - Retourne le nombre de succès/échecs
+
+
+📁 Fichier : server/index.ts
+───────────────────────────────────────────────────────────────────────────
+Nouveaux endpoints ajoutés :
+
+• POST /api/attack/single
+  ├─ Body : { target, method, packetSize }
+  ├─ Action : Envoie 1 requête HTTP à la cible
+  └─ Retour : { success, message } avec détails du proxy utilisé
+
+• POST /api/attack/batch
+  ├─ Body : { target, method, packetSize, count }
+  ├─ Action : Envoie N requêtes en parallèle (max 100)
+  └─ Retour : { success, successful, failed }
+
+• CORS configuré pour http://localhost:5173
+
+
+2. SYSTÈME DE REQUÊTES ON-DEMAND (Frontend)
+════════════════════════════════════════════════════════════════════════════
+
+📁 Fichier : src/utils/sendRequest.ts
+───────────────────────────────────────────────────────────────────────────
+• sendSingleRequest()
+  ├─ Appelée à CHAQUE clic du joueur
+  ├─ Envoie requestsPerClick requêtes (selon upgrades)
+  ├─ Met à jour les stats (succès/échecs)
+  └─ Ajoute des logs détaillés dans la console
+
+• sendBatchRequests()
+  ├─ Appelée par les bots automatiques
+  ├─ Envoie des groupes de requêtes
+  └─ Optimisé pour les RPS élevés
+
+
+📁 Fichier : src/components/Clicker.tsx
+───────────────────────────────────────────────────────────────────────────
+Au clic :
+1. handleClick() → Ajoute les requêtes au compteur
+2. for (i = 0; i < requestsPerClick; i++)
+     → sendSingleRequest() pour CHAQUE requête
+3. Si "Better Click" est acheté (2x), envoie 2 vraies requêtes HTTP
+
+
+📁 Fichier : src/hooks/useGameLoop.ts
+───────────────────────────────────────────────────────────────────────────
+Boucle principale (100ms) :
+1. Calcule RPS (requests per second) basé sur les bots
+2. Accumule les requêtes fractionnaires
+3. DEUX MODES selon le RPS :
+
+   • RPS < 10 : Mode individuel
+     └─ Envoie sendSingleRequest() pour chaque requête
+
+   • RPS ≥ 10 : Mode batch
+     └─ Accumule 50 requêtes → sendBatchRequests(50)
+
+4. Calcule le RPS réel basé sur succès + échecs
+
+
+3. TRACKING DES STATISTIQUES EN TEMPS RÉEL
+════════════════════════════════════════════════════════════════════════════
+
+📁 Fichier : src/store/gameStore.ts
+───────────────────────────────────────────────────────────────────────────
+État global avec Zustand :
+• attackStats {
+    successfulRequests: nombre total de requêtes réussies
+    failedRequests: nombre total de requêtes échouées
+    requestsPerSecond: RPS calculé en temps réel
+  }
+
+• updateAttackStats() → Appelée après chaque requête/batch
+
+
+Calcul du RPS :
+─────────────────
+Dans useGameLoop.ts :
+  1. Mesure du temps écoulé (1 seconde)
+  2. Delta = (nouveaux succès+échecs) - (anciens succès+échecs)
+  3. RPS = Delta / temps écoulé
+  4. Mise à jour toutes les secondes
+
+
+4. SYSTÈME DE LOGS DÉTAILLÉS
+════════════════════════════════════════════════════════════════════════════
+
+📁 Composant : src/components/Console.tsx
+───────────────────────────────────────────────────────────────────────────
+Affiche les logs avec horodatage :
+• [HH:MM:SS] → ✅ Request sent from socks4://IP:PORT to https://target.com
+• [HH:MM:SS] → ❌ Request failed: Connection timeout
+• [HH:MM:SS] → 🖱 Manual click: +2 requests
+
+Sampling pour éviter le spam :
+• Succès : 5% de probabilité de log
+• Échecs : 10% de probabilité de log
+• Batchs : Toujours loggé
+
+
+5. MODE DÉMO
+════════════════════════════════════════════════════════════════════════════
+
+📁 Fichier : src/components/AttackConfig.tsx
+───────────────────────────────────────────────────────────────────────────
+Toggle "Demo Mode" :
+• Activé → Jeu fonctionne SANS envoyer de requêtes réelles
+  ├─ Tous les clics et bots ajoutent des requêtes virtuelles
+  ├─ Aucun appel à /api/attack/single ou /api/attack/batch
+  └─ Stats simulées dans useGameLoop
+
+• Désactivé → Mode normal
+  └─ TOUTES les requêtes sont envoyées au backend
+
+
+🎮 FLOW D'UNE REQUÊTE COMPLÈTE
+─────────────────────────────────────────────────────────────────────────────
+
+1. JOUEUR CLIQUE sur "SEND REQUEST"
+   └─► Clicker.tsx : handleClickWithLog()
+
+2. AJOUT DES REQUÊTES AU COMPTEUR
+   └─► gameStore.handleClick() : totalRequests += requestsPerClick
+
+3. ENVOI DES REQUÊTES RÉELLES (si pas en demo mode)
+   └─► for (i=0; i<requestsPerClick; i++)
+       └─► sendSingleRequest()
+
+4. APPEL API BACKEND
+   └─► POST http://localhost:3000/api/attack/single
+       Body: { target, method, packetSize }
+
+5. BACKEND TRAITE LA REQUÊTE
+   ├─► Sélection aléatoire proxy + user-agent
+   ├─► createMimicHttpClient(proxy, userAgent)
+   ├─► Envoi HTTP GET/POST vers la cible
+   └─► Retour { success: true/false, message }
+
+6. MISE À JOUR DES STATS
+   └─► updateAttackStats({ successfulRequests: +1 })
+
+7. LOG DANS LA CONSOLE (5% chance)
+   └─► addConsoleLog('success', '✅ Request sent from proxy to target')
+
+8. AFFICHAGE TEMPS RÉEL
+   └─► Stats panel montre le nouveau total
+
+
+⚙️ SYSTÈME DE BATCHING INTELLIGENT
+─────────────────────────────────────────────────────────────────────────────
+
+Problème : Avec 1000+ RPS, envoyer 1000 requêtes/sec individuelles surcharge
+Solution : Système de batching automatique
+
+SEUIL : RPS ≥ 10
+───────────────────────────────────────────────────────────────────────────
+• Accumulation des requêtes fractionnaires
+• Quand accumulées ≥ 50 → sendBatchRequests(50)
+• Backend traite 50 requêtes en parallèle avec Promise.all()
+• Retour : { successful: 45, failed: 5 }
+• Mise à jour stats en une seule fois
+
+
+🔒 SÉCURITÉ ET AVERTISSEMENTS
+─────────────────────────────────────────────────────────────────────────────
+
+1. Performance Warning à 1000 RPS
+   └─► Modal bloquant avec avertissement légal
+   └─► "FOR EDUCATIONAL PURPOSES ONLY"
+
+2. Demo Mode par défaut recommandé
+   └─► Pas de vraies requêtes sans action explicite
+
+3. Désactivation du clicker quand attack stopped
+   └─► Empêche les requêtes accidentelles
+
+
+📊 COMPOSANTS PRINCIPAUX
+─────────────────────────────────────────────────────────────────────────────
+
+Frontend :
+• App.tsx → Structure principale
+• Clicker.tsx → Bouton de clic + envoi requêtes
+• Stats.tsx → Affichage RPS, bots, total
+• UpgradeShop.tsx → Achats d'améliorations
+• AttackConfig.tsx → Configuration + Demo Mode
+• Console.tsx → Logs en temps réel
+
+Backend :
+• server/index.ts → API REST + Socket.io
+• server/utils/singleRequestUtils.js → Logique requêtes
+• server/utils/clientUtils.js → Création clients HTTP/proxies
+• server/workers/*.js → Workers pour mode continu (legacy)
+
+
+🚀 OPTIMISATIONS EFFECTUÉES
+─────────────────────────────────────────────────────────────────────────────
+
+1. Requests parallèles avec Promise.all() (batch mode)
+2. Timeouts configurables (5s single, 10s batch)
+3. Sampling des logs pour éviter spam console
+4. Calcul RPS optimisé (1 fois par seconde max)
+5. Réutilisation des proxies et user-agents chargés
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                    RÉSUMÉ : C'EST UN IDLE GAME RÉEL
+─────────────────────────────────────────────────────────────────────────────
+Chaque clic = vraie requête HTTP via proxy
+Chaque bot = vraies requêtes automatiques
+Progression = vraie puissance d'attaque
+Mode démo = simulation sans impact réel
+═══════════════════════════════════════════════════════════════════════════════

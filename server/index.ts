@@ -10,6 +10,7 @@ import bodyParser from "body-parser";
 import { currentPath, loadProxies, loadUserAgents } from "./fileLoader";
 import { AttackMethod } from "./lib";
 import { filterProxies } from "./proxyUtils";
+import { sendSingleRequest, sendBatchRequests } from "./utils/singleRequestUtils.js";
 
 // Define the workers based on attack type
 const attackWorkers: { [key in AttackMethod]: string } = {
@@ -154,6 +155,92 @@ app.post("/configuration", bodyParser.json(), (req, res) => {
   });
 
   res.send("OK");
+});
+
+// Single request endpoint for idle game mechanics
+app.post("/api/attack/single", bodyParser.json(), async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Content-Type", "application/json");
+
+  const { target, method, packetSize } = req.body;
+
+  if (!target || !method) {
+    return res.status(400).json({ success: false, message: "Missing target or method" });
+  }
+
+  // Select random proxy and user agent
+  const filteredProxies = filterProxies(proxies, method as AttackMethod);
+  if (filteredProxies.length === 0) {
+    return res.status(500).json({ success: false, message: "No proxies available for this method" });
+  }
+
+  const proxy = filteredProxies[Math.floor(Math.random() * filteredProxies.length)];
+  const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+  try {
+    const result = await sendSingleRequest({
+      target,
+      method,
+      packetSize: packetSize || 64,
+      proxy,
+      userAgent
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Batch request endpoint for high RPS scenarios
+app.post("/api/attack/batch", bodyParser.json(), async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Content-Type", "application/json");
+
+  const { target, method, packetSize, count } = req.body;
+
+  if (!target || !method || !count) {
+    return res.status(400).json({ success: false, message: "Missing required parameters" });
+  }
+
+  if (count > 100) {
+    return res.status(400).json({ success: false, message: "Batch size cannot exceed 100" });
+  }
+
+  const filteredProxies = filterProxies(proxies, method as AttackMethod);
+  if (filteredProxies.length === 0) {
+    return res.status(500).json({ success: false, message: "No proxies available for this method" });
+  }
+
+  try {
+    const result = await sendBatchRequests({
+      target,
+      method,
+      packetSize: packetSize || 64,
+      count,
+      proxies: filteredProxies,
+      userAgents
+    });
+
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// CORS preflight for new endpoints
+app.options("/api/attack/single", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.send();
+});
+
+app.options("/api/attack/batch", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.send();
 });
 
 const PORT = parseInt(process.env.PORT || "3000");

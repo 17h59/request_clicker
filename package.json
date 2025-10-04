@@ -27,7 +27,8 @@
     "react-dom": "^18.3.1",
     "socket.io": "^4.7.4",
     "socket.io-client": "^4.7.4",
-    "socks-proxy-agent": "^8.0.5"
+    "socks-proxy-agent": "^8.0.5",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
